@@ -6,6 +6,7 @@ const moment = require('moment');       // eslint-disable-line no-unused-vars
 const fs = require('fs');    // eslint-disable-line no-unused-vars
 const readdir = promisify(require("fs").readdir);       // eslint-disable-line no-unused-vars
 const request = require('request-promise-native');
+const Discord = require('discord.js');
 
 module.exports = (client) => {
     // The scheduler for events
@@ -55,7 +56,7 @@ module.exports = (client) => {
     };
 
     // This finds any character that matches the search, and returns them in an array
-    client.findChar = (searchName, charList) => {
+    client.findChar = (searchName, charList, ship=false) => {
         const options = {
             tokenize: true,
             matchAllTokens: true,
@@ -79,6 +80,7 @@ module.exports = (client) => {
         }
 
         // If there's not an exact name match, fuzzy search it
+        if (ship) options.keys.push('crew');
         const fuse = new Fuse(charList, options);
         let chars = fuse.search(searchName);
         if (chars.length >= 1) {
@@ -86,6 +88,7 @@ module.exports = (client) => {
         }
 
         // If it's not exact, send back the big mess
+        if (ship) options2.keys.push('crew');
         const fuse2 = new Fuse(charList, options2);
         chars = fuse2.search(searchName);
         return chars;
@@ -339,7 +342,8 @@ module.exports = (client) => {
         try {
             client.characters = await JSON.parse(fs.readFileSync("data/characters.json"));
             client.ships = await JSON.parse(fs.readFileSync("data/ships.json"));
-            client.teams = await JSON.parse(fs.readFileSync("data/teams.json"));
+            client.squads = await JSON.parse(fs.readFileSync("data/squads.json"));
+            client.resources = await JSON.parse(fs.readFileSync("data/resources.json"));
         } catch (e) {
             err = e;
         }
@@ -561,6 +565,57 @@ module.exports = (client) => {
     };
 
     /*
+     * Find an emoji by ID
+     * Via https://discordjs.guide/#/sharding/extended?id=using-functions-continued
+     */
+    client.findEmoji = (id) => {
+        const temp = client.emojis.get(id);
+        if (!temp) return false;
+
+        // Clone the object because it is modified right after, so as to not affect the cache in client.emojis
+        const emoji = Object.assign({}, temp);
+        // Circular references can't be returned outside of eval, so change it to the id
+        if (emoji.guild) emoji.guild = emoji.guild.id;
+        // A new object will be construted, so simulate raw data by adding this property back
+        emoji.require_colons = emoji.requiresColons;
+
+        return emoji;
+    };
+
+
+    /*
+     * Use the findEmoji() to check all shards if sharded
+     * If sharded, also use the example from
+     * https://discordjs.guide/#/sharding/extended?id=using-functions-continued
+     */
+    client.getEmoji = (id) => {
+        if (client.shard && client.shard.count > 0) {
+            return client.shard.broadcastEval(`this.findEmoji('${id}');`)//.call(this, '${id}')`)
+                .then(emojiArray => {
+                    // Locate a non falsy result, which will be the emoji in question
+                    const foundEmoji = emojiArray.find(emoji => emoji);
+                    if (!foundEmoji) return false;
+
+                    // console.log(client.guilds.get(foundEmoji.guild));
+
+                    // Reconstruct an emoji object as required by discord.js
+                    try {
+                        if (!client.guilds.has(foundEmoji.guild)) return false;
+                        // Only works if on the same shard, so kinda pointless at this point
+                        return new Discord.Emoji(client.guilds.get(foundEmoji.guild), foundEmoji);
+                    } catch (e) {
+                        console.log(e);
+                    }
+                });
+        } else {
+            const emoji = client.findEmoji(id);
+            if (!emoji) return false;
+            return new Discord.Emoji(client.guilds.get(emoji.guild), emoji);
+        }
+    };
+
+
+    /*
      * isUserID
      * Check if a string of numbers is a valid user.
      */
@@ -576,6 +631,20 @@ module.exports = (client) => {
     client.isAllyCode = (aCode) => {
         const match = aCode.replace(/[^\d]*/g, '').match(/\d{9}/);
         return match ? true : false;
+    };
+
+    // Expand multiple spaces to have zero width spaces between so 
+    // Discord doesn't collapse em
+    client.expandSpaces = (str) => {
+        let outStr = '';
+        str.split(/([\s]{2,})/).forEach(e => {
+            if (e.match(/[\s]{2,}/)) {
+                outStr += e.split('').join('\u200B');
+            } else {
+                outStr += e;
+            }
+        });
+        return outStr;
     };
 
     // Get the ally code of someone that's registered
@@ -603,16 +672,18 @@ module.exports = (client) => {
         }  else if (client.isAllyCode(user)) {
             return [user.replace(/[^\d]*/g, '')];
         }  else {
-            const outArr = [];
-            const results = await client.swgohAPI.report( 'getPlayerProfile', { "name": user } );
-            if (results.length > 1) {
-                results.forEach(p => {
-                    outArr.push(p.allyCode);
-                });
-            } else if (results.length ===  1) {
-                outArr.push(results[0].allyCode);
-            }
-            return outArr;
+            // TODO  Get this working
+            return [];
+            // const outArr = [];
+            // const results = await client.swgohAPI.report( 'getPlayerProfile', { "name": user } );
+            // if (results.length > 1) {
+            //     results.forEach(p => {
+            //         outArr.push(p.allyCode);
+            //     });
+            // } else if (results.length ===  1) {
+            //     outArr.push(results[0].allyCode);
+            // }
+            // return outArr;
         }
     };
 
@@ -813,6 +884,24 @@ module.exports = (client) => {
         }
     };
 
+    // Convert from milliseconds
+    client.convertMS = (milliseconds) => {
+        var day, hour, minute, seconds;
+        seconds = Math.floor(milliseconds / 1000);
+        minute = Math.floor(seconds / 60);
+        seconds = seconds % 60;
+        hour = Math.floor(minute / 60);
+        minute = minute % 60;
+        day = Math.floor(hour / 24);
+        hour = hour % 24;
+        return {
+            day: day,
+            hour: hour,
+            minute: minute,
+            seconds: seconds
+        };
+    };
+
     
     // Reload the SWGoH data for all patrons
     client.reloadPatrons = async () => {
@@ -832,7 +921,7 @@ module.exports = (client) => {
             for (let ix=0; ix < patronIDs.length; ix++) {
                 const allyCodes = await client.getAllyCode(null, patronIDs[ix].toString());
                 if (allyCodes.length) {
-                    await client.swgohAPI.updatePlayer(allyCodes[0]);
+                    await client.swgohAPI.player(allyCodes[0]);
                 }
             }
         }

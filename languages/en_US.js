@@ -368,7 +368,7 @@ module.exports = class extends Language {
             // Guilds Command
             COMMAND_GUILDS_MORE_INFO: 'For more info on a specific guild:',
             COMMAND_GUILDS_HELP: {
-                description: "Shows the top guilds and everyone that's registered in yours.",
+                description: "Shows everyone that's in your guild/ some basic stats.",
                 actions: [
                     {
                         action: "",
@@ -428,13 +428,13 @@ module.exports = class extends Language {
             },
 
             // Info Command
-            COMMAND_INFO_OUTPUT: (guilds) => ({
+            COMMAND_INFO_OUTPUT: (guilds, prefix) => ({
                 "header": 'INFORMATION',
-                "desc": ` \nCurrently running on **${guilds}** servers \n`,
+                "desc": ` \nCurrently running on **${guilds}** servers \nCurrent prefix: \`${prefix}\``,
                 "links": {
-                    "Invite me": "Invite the bot http://swgohbot.com/invite",
-                    "Support Server": "If you have a question, want to pitch in, or just want to come by, the bot support server is https://discord.gg/FfwGvhr",
-                    "Support the Bot": "The bot's code is on github https://github.com/jmiln/SWGoHBot, and is open to contributions. \n\nI also have a Patreon https://www.patreon.com/swgohbot if you're interested."
+                    "Add me to your server": "- http://swgohbot.com/invite",
+
+                    "Support the Bot": "- [Github](https://github.com/jmiln/SWGoHBot)\n- [Patreon](https://www.patreon.com/swgohbot)\n- [PayPal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=YY3B9BS298KYW)"
                 }
             }),
             COMMAND_INFO_HELP: {
@@ -569,7 +569,7 @@ module.exports = class extends Language {
             COMMAND_MYPROFILE_NO_USER: (user) => `Sorry, but I can't find any arena data for ${user}. Please make sure that account is synced`,
             COMMAND_MYPROFILE_EMBED_HEADER: (playerName, allyCode) => `${playerName}'s profile (${allyCode})`,
             COMMAND_MYPROFILE_EMBED_FOOTER: (date) => `Arena data as of: ${date}`,
-            COMMAND_MYPROFILE_DESC: (guildName, level, charRank, shipRank) => `**Guild:** ${guildName}\n**Level:** ${level}\n**Arena rank:** ${charRank}\n**Ship rank:** ${shipRank}`,
+            COMMAND_MYPROFILE_DESC: (guildName, level, charRank, shipRank, gpFull) => `**Guild:** ${guildName}\n**Level:** ${level}\n**Arena rank:** ${charRank}\n**Ship rank:** ${shipRank}\n**Total GP:** ${gpFull}`,
             COMMAND_MYPROFILE_CHARS: (gpChar, charList, zetaCount) => ({
                 header: `Characters (${charList.length})`,
                 stats: [
@@ -797,6 +797,23 @@ module.exports = class extends Language {
                 ]
             },
 
+            // Resources Command
+            COMMAND_RESOURCES_HEADER: 'SWGoH Resources',
+            COMMAND_RESOURCES_INVALID_CATEGORY: (list) => `Invalid category. Please choose from one of these: \`${list}\``,
+            COMMAND_RESOURCES_HELP: {
+                description: "Shows useful SWGoH resources.",
+                actions: [
+                    {
+                        action: "",
+                        actionDesc: '',
+                        usage: ';resources <category>',
+                        args: {
+                            "category": "One of the available categories. (Bots, Game Changers, Websites)"
+                        }
+                    }
+                ]
+            },
+
             // Setconf Command
             COMMAND_SETCONF_MISSING_PERMS: `Sorry, but either you're not an admin, or your server leader has not set up the configs.`,
             COMMAND_SETCONF_MISSING_OPTION: `You must select a config option to change.`,
@@ -932,6 +949,7 @@ module.exports = class extends Language {
             COMMAND_SHARDTIMES_MISSING_TIMEZONE: `You need to enter a timezone.`,
             COMMAND_SHARDTIMES_INVALID_TIMEZONE: `Invalid timezone, look here https://en.wikipedia.org/wiki/List_of_tz_database_time_zones \nand find the one that you need, then enter what it says in the TZ column`,
             COMMAND_SHARDTIMES_USER_ADDED: `User successfully added!`,
+            COMMAND_SHARDTIMES_USER_MOVED: (from, to) => `Updated user from ${from} to ${to}.`,
             COMMAND_SHARDTIMES_USER_NOT_ADDED: `Something went wrong when with adding this user. Please try again.`,
             COMMAND_SHARDTIMES_REM_MISSING_PERMS: `Sorry, but you can only remove yourself unless you have an admin role.`,
             COMMAND_SHARDTIMES_REM_SUCCESS: `User successfully removed!`,
@@ -1027,14 +1045,22 @@ module.exports = class extends Language {
             },
 
             // Stats Command
-            COMMAND_STATS_OUTPUT: (memUsage, cpuLoad, uptime, users, servers, channels, shardID) => `= STATISTICS (${shardID}) =\n
-• Mem Usage  :: ${memUsage} MB
-• CPU Load   :: ${cpuLoad}%
-• Uptime     :: ${uptime}
-• Users      :: ${users}
-• Servers    :: ${servers}
-• Channels   :: ${channels}
-• Source     :: https://github.com/jmiln/SWGoHBot`,
+            COMMAND_STATS_OUTPUT: (memUsage, cpuLoad, uptime, users, servers, channels, shardID, botLangs, players, guilds, gohLangs, updated) => [
+                `= STATISTICS (${shardID}) =`,
+                `• Mem Usage  :: ${memUsage} MB`,
+                `• CPU Load   :: ${cpuLoad}%`,
+                `• Uptime     :: ${uptime}`,
+                `• Users      :: ${users}`,
+                `• Servers    :: ${servers}`,
+                `• Channels   :: ${channels}`,
+                `• Languages  :: ${botLangs}`,
+                '• Source     :: https://github.com/jmiln/SWGoHBot\n',
+                '= SWGoH Stats =',
+                `• Registered Players :: ${players}`,
+                `• Registered Guilds  :: ${guilds}`,
+                `• Available Languages:: ${gohLangs}`,
+                `• Client updated     :: ${updated}`
+            ].join('\n'),
             COMMAND_STATS_HELP: {
                 description: "Shows the bot's stats.",
                 actions: [

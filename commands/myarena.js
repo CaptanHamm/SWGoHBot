@@ -1,5 +1,5 @@
 const Command = require('../base/Command');
-const {inspect} = require('util');
+const {inspect} = require('util'); // eslint-disable-line no-unused-vars
 
 // To get the player's arena info (Adapted from shittybill#3024's Scorpio)
 class MyArena extends Command {
@@ -24,7 +24,8 @@ class MyArena extends Command {
 
         let player;
         try {
-            player = await client.swgohAPI.getPlayer(allyCode, lang);
+            // player = await client.swgohAPI.getPlayer(allyCode, lang);
+            player = await client.swgohAPI.player(allyCode, lang);
         } catch (e) {
             console.log('Broke getting player in myarena: ' + e);
         }
@@ -63,7 +64,7 @@ class MyArena extends Command {
                 name: message.language.get('COMMAND_MYARENA_EMBED_HEADER', player.name)
             },
             footer: {
-                text: message.language.get('COMMAND_MYARENA_EMBED_FOOTER', new Date().toISOString().replace(/T/g,' ').replace(/\..*/g,''))
+                text: message.language.get('BASE_SWGOH_LAST_UPDATED', client.duration(player.updated, message))
             },
             fields: fields
         }});
